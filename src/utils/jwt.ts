@@ -26,6 +26,16 @@ export const generateAccessToken = (payload: JwtPayload): string => {
   });
 };
 
+export const generateRefreshToken = (payload: object) => {
+    return jwt.sign(
+      payload,
+      process.env.JWT_REFRESH_SECRET as string,
+      {
+        expiresIn: "7d",
+      }
+    );
+  };
+
 export const verifyAccessToken = (token: string): JwtPayload => {
   return jwt.verify(token, JWT_SECRET) as JwtPayload;
 };

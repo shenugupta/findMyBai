@@ -7,6 +7,16 @@ export enum UserRole {
   ADMIN = "ADMIN",
 }
 
+export interface IRefreshToken {
+  tokenHash: string;
+  deviceId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: Date;
+  expiresAt: Date;
+  revokedAt?: Date;
+}
+
 export interface IUser {
   firstName: string;
   lastName: string;
@@ -18,6 +28,7 @@ export interface IUser {
   isActive: boolean;
   profileImage?: string;
   lastLoginAt?: Date;
+  refreshTokens: IRefreshToken[];
 }
 
 export type UserDocument = HydratedDocument<
@@ -25,6 +36,48 @@ export type UserDocument = HydratedDocument<
     comparePassword(password: string): Promise<boolean>;
   }
 >;
+
+const RefreshTokenSchema = new Schema<IRefreshToken>(
+  {
+    tokenHash: {
+      type: String,
+      required: true,
+    },
+
+    deviceId: {
+      type: String,
+      default: "",
+    },
+
+    ipAddress: {
+      type: String,
+      default: "",
+    },
+
+    userAgent: {
+      type: String,
+      default: "",
+    },
+
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    expiresAt: {
+      type: Date,
+      required: true,
+    },
+
+    revokedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
 
 const UserSchema = new Schema<UserDocument>(
   {
@@ -46,6 +99,7 @@ const UserSchema = new Schema<UserDocument>(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
 
     phone: {
@@ -53,6 +107,7 @@ const UserSchema = new Schema<UserDocument>(
       required: true,
       unique: true,
       trim: true,
+      index: true,
     },
 
     password: {
@@ -85,14 +140,24 @@ const UserSchema = new Schema<UserDocument>(
 
     lastLoginAt: {
       type: Date,
+      default: null,
+    },
+
+    refreshTokens: {
+      type: [RefreshTokenSchema],
+      default: [],
+      select: false,
     },
   },
   {
     timestamps: true,
+    versionKey: false,
   }
 );
 
-// Hash password before save
+/**
+ * Hash password before save
+ */
 UserSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
@@ -100,7 +165,9 @@ UserSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Compare Password
+/**
+ * Compare password
+ */
 UserSchema.methods.comparePassword = async function (
   password: string
 ): Promise<boolean> {

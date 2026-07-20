@@ -8,6 +8,7 @@ const controller = new AuthController();
 // Public
 router.post("/signup", controller.signup);
 router.post("/login", controller.login);
+router.post("/refresh-token", controller.refreshToken);
 
 // Protected
 router.get("/profile", authenticate, controller.getProfile);

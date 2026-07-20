@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 
+
 export class AuthController {
   private authService = new AuthService();
 
@@ -24,6 +25,26 @@ export class AuthController {
       });
     } catch (error) {
         console.log("Signup API called");
+      next(error);
+    }
+  };
+
+  refreshToken = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { refreshToken } = req.body;
+  
+      const result = await this.authService.refreshToken(refreshToken);
+  
+      res.status(200).json({
+        success: true,
+        message: "Token refreshed successfully",
+        data: result,
+      });
+    } catch (error) {
       next(error);
     }
   };

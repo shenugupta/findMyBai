@@ -11,10 +11,10 @@ export class AuthRepository {
    * Find User By Email
    */
 
-  async findByEmail(email: string): Promise<UserDocument | null> {
-    return User.findOne({ email }).select("+password");
+  async findByEmail(email: string) {
+    return User.findOne({ email }).select("+password +refreshTokens");
   }
-  
+
   async createUser(data: Partial<UserDocument>): Promise<UserDocument> {
     const user = new User(data);
     return user.save();
@@ -48,6 +48,10 @@ export class AuthRepository {
 
   async findById(userId: string): Promise<UserDocument | null> {
     return User.findById(userId);
+  }
+  
+  async findUserForRefresh(id: string) {
+    return User.findById(id).select("+refreshTokens");
   }
 
   /**
