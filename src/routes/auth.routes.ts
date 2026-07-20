@@ -3,12 +3,13 @@ import { AuthController } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
 const router = Router();
-const authController = new AuthController();
+const controller = new AuthController();
 
-router.post("/signup", authController.signup);
+// Public
+router.post("/signup", controller.signup);
+router.post("/login", controller.login);
 
-router.post("/login", authController.login);
-
-router.get("/profile", authenticate, authController.getProfile);
+// Protected
+router.get("/profile", authenticate, controller.getProfile);
 
 export default router;

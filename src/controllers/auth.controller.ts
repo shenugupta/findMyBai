@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth.service";
+import { AuthRequest } from "../middleware/auth.middleware";
 
 export class AuthController {
   private authService = new AuthService();
@@ -53,16 +54,15 @@ export class AuthController {
   /**
    * GET /api/v1/auth/profile
    */
+
   getProfile = async (
-    req: Request,
+    req: AuthRequest,
     res: Response,
     next: NextFunction
-  ): Promise<void> => {
+  ) => {
     try {
-      const userId = (req as any).user.userId;
-
-      const user = await this.authService.getProfile(userId);
-
+      const user = await this.authService.getProfile(req.user!.userId);
+  
       res.status(200).json({
         success: true,
         data: user,

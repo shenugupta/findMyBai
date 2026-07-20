@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { AuthRepository } from "../repositories/auth.repository";
 import { UserDocument, UserRole } from "../models/user.model";
+import { generateAccessToken } from "../utils/jwt";
 
 export class AuthService {
   private authRepository = new AuthRepository();
@@ -33,7 +34,7 @@ export class AuthService {
       role: data.role ?? UserRole.CUSTOMER,
     });
 
-    const accessToken = this.generateAccessToken(user);
+    const accessToken = this.generateToken(user);
 
     return {
       user,
@@ -59,7 +60,7 @@ export class AuthService {
 
     await this.authRepository.updateLastLogin(user._id.toString());
 
-    const accessToken = this.generateAccessToken(user);
+    const accessToken = this.generateToken(user);
 
     return {
       user,
@@ -80,21 +81,14 @@ export class AuthService {
     return user;
   }
 
-  
-
   /**
    * Generate JWT
    */
-  private generateAccessToken(user: UserDocument): string {
-    return jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role,
-      },
-      process.env.JWT_SECRET as string,
-      {
-        expiresIn: "1d",
-      }
-    );
+  private generateToken(user: UserDocument): string {
+    return generateAccessToken({
+      userId: user._id.toString(),
+      role: user.role,
+    });
   }
 }
+

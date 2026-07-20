@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "../utils/jwt";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -16,23 +16,25 @@ export const authenticate = (
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader) {
       res.status(401).json({
         success: false,
-        message: "Unauthorized",
+        message: "Authorization header is missing",
+      });
+      return;
+    }
+
+    if (!authHeader.startsWith("Bearer ")) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid authorization format",
       });
       return;
     }
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as {
-      userId: string;
-      role: string;
-    };
+    const decoded = verifyAccessToken(token);
 
     req.user = decoded;
 
@@ -40,7 +42,7 @@ export const authenticate = (
   } catch (error) {
     res.status(401).json({
       success: false,
-      message: "Invalid or expired token",
+      message: "Invalid or expired access token",
     });
   }
 };
