@@ -8,41 +8,47 @@ export interface AuthRequest extends Request {
   };
 }
 
+import jwt from "jsonwebtoken";
+
+export interface AuthRequest extends Request {
+  user?: {
+    userId: string;
+    role: string;
+  };
+}
+
 export const authenticate = (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): void => {
+) => {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
-      res.status(401).json({
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({
         success: false,
-        message: "Authorization header is missing",
+        message: "Unauthorized",
       });
-      return;
-    }
-
-    if (!authHeader.startsWith("Bearer ")) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid authorization format",
-      });
-      return;
     }
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = verifyAccessToken(token);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as {
+      userId: string;
+      role: string;
+    };
 
     req.user = decoded;
 
     next();
-  } catch (error) {
-    res.status(401).json({
+  } catch {
+    return res.status(401).json({
       success: false,
-      message: "Invalid or expired access token",
+      message: "Invalid token",
     });
   }
 };

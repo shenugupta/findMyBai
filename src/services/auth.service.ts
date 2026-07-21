@@ -42,10 +42,13 @@ export class AuthService {
     });
 
     const accessToken = generateAccessToken({
-        userId: user.id,
-        role: user.role,
-      });
-    const refreshToken = generateRefreshToken(user);
+      userId: user._id.toString(),
+      role: user.role,
+    });
+    const refreshToken = generateRefreshToken({
+      userId: user._id.toString(),
+      role: user.role,
+    });
 
   // Store hashed refresh token in the user's refreshTokens array
 user.refreshTokens.push({

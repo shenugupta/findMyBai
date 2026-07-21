@@ -3,6 +3,7 @@ dotenv.config();
 
 import app from "./app";
 import { connectDB } from "./config/database";
+console.log("Server starting...");
 
 const PORT = process.env.PORT || 3001;
 
