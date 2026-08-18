@@ -3,6 +3,7 @@ dotenv.config();
 
 import app from "./app";
 import { connectDB } from "./config/database";
+import { connectPrisma } from "./config/prisma";
 console.log("Server starting...");
 
 const PORT = process.env.PORT || 3001;
@@ -10,6 +11,7 @@ const PORT = process.env.PORT || 3001;
 const startServer = async () => {
   try {
     await connectDB();
+    await connectPrisma();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
