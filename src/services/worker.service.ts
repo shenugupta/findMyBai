@@ -1,14 +1,12 @@
-import { WorkerProfileView, WorkerRepository } from "../repositories/worker.repository";
+import { UserRole } from "@prisma/client";
+import { WorkerRepository } from "../repositories/worker.repository";
 import { AuthRepository } from "../repositories/auth.repository";
-import { UserRepository } from "../repositories/user.repository";
-import { UserRole } from "../models/user.model";
 
 const AVAILABILITY = ["FULL_TIME", "PART_TIME", "LIVE_IN"] as const;
 
 export class WorkerService {
   private workerRepository = new WorkerRepository();
   private authRepository = new AuthRepository();
-  private userRepository = new UserRepository();
 
   async createProfile(
     userId: string,
@@ -118,29 +116,6 @@ export class WorkerService {
   }
 
   async getWorkers() {
-    const profiles: WorkerProfileView[] = await this.workerRepository.findAll();
-    const users = await this.userRepository.findByIds(
-      profiles.map((profile) => profile.userId)
-    );
-    const usersById = new Map(
-      users.map((user) => [user._id.toString(), user])
-    );
-
-    return profiles.map((profile) => {
-      const user = usersById.get(profile.userId);
-
-      return {
-        ...profile,
-        user: user
-          ? {
-              firstName: user.firstName,
-              lastName: user.lastName,
-              phone: user.phone,
-              profileImage: user.profileImage,
-              isActive: user.isActive,
-            }
-          : null,
-      };
-    });
+    return this.workerRepository.findAll();
   }
 }

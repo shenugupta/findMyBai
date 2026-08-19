@@ -58,12 +58,34 @@ export class WorkerRepository {
     return profile ? toProfile(profile) : null;
   }
 
-  async findAll(): Promise<WorkerProfileView[]> {
+  async findAll(): Promise<(WorkerProfileView & {
+    user: {
+      firstName: string;
+      lastName: string;
+      phone: string;
+      profileImage: string | null;
+      isActive: boolean;
+    };
+  })[]> {
     const profiles = await prisma.workerProfile.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phone: true,
+            profileImage: true,
+            isActive: true,
+          },
+        },
+      },
     });
 
-    return profiles.map(toProfile);
+    return profiles.map((profile) => ({
+      ...toProfile(profile),
+      user: profile.user,
+    }));
   }
 
   async create(data: CreateWorkerProfileData) {

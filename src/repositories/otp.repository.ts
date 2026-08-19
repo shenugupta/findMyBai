@@ -1,50 +1,39 @@
-// src/repositories/otp.repository.ts
-
-import OTP, { OTPPurpose } from "../models/otp.model";
+import { OTPPurpose } from "@prisma/client";
+import prisma from "../config/prisma";
 
 export class OTPRepository {
+  async createOTP(phone: string, otpHash: string, purpose: OTPPurpose) {
+    await prisma.otp.deleteMany({
+      where: { phone, purpose },
+    });
 
-  async createOTP(
-    phone: string,
-    otpHash: string,
-    purpose: OTPPurpose
-  ) {
-    await OTP.deleteMany({ phone, purpose });
-
-    return OTP.create({
-      phone,
-      otpHash,
-      purpose,
-      attempts: 0,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    return prisma.otp.create({
+      data: {
+        phone,
+        otpHash,
+        purpose,
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      },
     });
   }
 
-  async findOTP(
-    phone: string,
-    purpose: OTPPurpose
-  ) {
-    return OTP.findOne({
-      phone,
-      purpose,
-    }).select("+otpHash");
+  async findOTP(phone: string, purpose: OTPPurpose) {
+    return prisma.otp.findFirst({
+      where: { phone, purpose },
+    });
   }
 
   async incrementAttempts(id: string) {
-    return OTP.findByIdAndUpdate(
-      id,
-      { $inc: { attempts: 1 } },
-      { new: true }
-    );
+    return prisma.otp.update({
+      where: { id },
+      data: { attempts: { increment: 1 } },
+    });
   }
 
-  async deleteOTP(
-    phone: string,
-    purpose: OTPPurpose
-  ) {
-    return OTP.deleteMany({
-      phone,
-      purpose,
+  async deleteOTP(phone: string, purpose: OTPPurpose) {
+    return prisma.otp.deleteMany({
+      where: { phone, purpose },
     });
   }
 }

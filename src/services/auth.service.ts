@@ -1,21 +1,17 @@
 import jwt from "jsonwebtoken";
+import { UserRole } from "@prisma/client";
 import { AuthRepository } from "../repositories/auth.repository";
-import User, { IUser, UserDocument, UserRole } from "../models/user.model";
-import { hashToken } from "../utils/hash";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
-import { Document, DefaultSchemaOptions, Types } from "mongoose";
-import crypto from "crypto";
-// import { OTPRepository } from "../repositories/otp.repository";
-// import { SMSService } from "../utils/sms";
-// import { generateOTP } from "../utils/otp";
-// import { OTPPurpose } from "../models/otp.model";
+import { comparePassword, hashPassword, hashToken } from "../utils/hash";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/jwt";
+
+const REFRESH_TOKEN_DAYS = 7;
 
 export class AuthService {
   private authRepository = new AuthRepository();
 
-  /**
-   * Register User
-   */
   async signup(data: {
     firstName: string;
     lastName: string;
@@ -37,38 +33,22 @@ export class AuthService {
     }
 
     const user = await this.authRepository.createUser({
-      ...data,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      password: await hashPassword(data.password),
       role: data.role ?? UserRole.CUSTOMER,
     });
 
-    const accessToken = generateAccessToken({
-      userId: user._id.toString(),
-      role: user.role,
-    });
-    const refreshToken = generateRefreshToken({
-      userId: user._id.toString(),
-      role: user.role,
-    });
+    const tokens = await this.issueTokens(user.id, user.role);
 
-    // Store hashed refresh token in the user's refreshTokens array
-    user.refreshTokens.push({
-      tokenHash: hashToken(refreshToken),
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    });
-
-    // Save the updated user
-    await user.save();
     return {
       user,
-      accessToken,
-      refreshToken,
+      ...tokens,
     };
   }
 
-  /**
-   * Login User
-   */
   async login(email: string, password: string) {
     const user = await this.authRepository.findByEmail(email);
 
@@ -76,30 +56,21 @@ export class AuthService {
       throw new Error("Invalid email or password");
     }
 
-    const isValidPassword = await user.comparePassword(password);
+    const isValidPassword = await comparePassword(password, user.password);
 
     if (!isValidPassword) {
       throw new Error("Invalid email or password");
     }
 
-    const accessToken = this.generateToken(user);
-    const refreshToken = this.generateRefreshToken(user);
+    await this.authRepository.updateLastLogin(user.id);
+    const tokens = await this.issueTokens(user.id, user.role);
 
-    // Store hashed refresh token
-    user.refreshTokens.push({
-      tokenHash: this.hashToken(refreshToken),
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    });
-
-    user.lastLoginAt = new Date();
-
-    await user.save();
+    const { password: _password, ...publicUser } = user;
+    void _password;
 
     return {
-      user,
-      accessToken,
-      refreshToken,
+      user: publicUser,
+      ...tokens,
     };
   }
 
@@ -108,58 +79,28 @@ export class AuthService {
       throw new Error("Refresh token is required");
     }
 
-    // Verify JWT
     const payload = jwt.verify(
       token,
-      process.env.JWT_REFRESH_SECRET as string,
-    ) as any;
+      process.env.JWT_REFRESH_SECRET as string
+    ) as { userId: string; role: string };
 
-    // Find user with refresh tokens
-    const user = await User.findById(payload.userId).select("+refreshTokens");
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Check whether the token exists
-    const hashedToken = this.hashToken(token);
-
-    const storedToken = user.refreshTokens.find(
-      (t) =>
-        t.tokenHash === hashedToken && !t.revokedAt && t.expiresAt > new Date(),
+    const storedToken = await this.authRepository.findValidRefreshToken(
+      payload.userId,
+      hashToken(token)
     );
 
     if (!storedToken) {
       throw new Error("Invalid refresh token");
     }
 
-    // Generate new access token
-    const accessToken = this.generateToken(user);
-
     return {
-      accessToken,
+      accessToken: generateAccessToken({
+        userId: storedToken.user.id,
+        role: storedToken.user.role,
+      }),
     };
   }
-  private hashToken(token: string): string {
-    return crypto.createHash("sha256").update(token).digest("hex");
-  }
-  private generateRefreshToken(user: UserDocument): string {
-    return jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role,
-        type: "refresh",
-      },
-      process.env.JWT_REFRESH_SECRET as string,
-      {
-        expiresIn: "30d",
-      },
-    );
-  }
 
-  /**
-   * Get User Profile
-   */
   async getProfile(userId: string) {
     const user = await this.authRepository.findById(userId);
 
@@ -170,13 +111,18 @@ export class AuthService {
     return user;
   }
 
-  /**
-   * Generate JWT
-   */
-  private generateToken(user: UserDocument): string {
-    return generateAccessToken({
-      userId: user._id.toString(),
-      role: user.role,
+  private async issueTokens(userId: string, role: UserRole) {
+    const accessToken = generateAccessToken({ userId, role });
+    const refreshToken = generateRefreshToken({ userId, role });
+
+    await this.authRepository.createRefreshToken({
+      userId,
+      tokenHash: hashToken(refreshToken),
+      expiresAt: new Date(
+        Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000
+      ),
     });
+
+    return { accessToken, refreshToken };
   }
 }

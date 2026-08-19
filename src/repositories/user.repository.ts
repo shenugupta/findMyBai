@@ -1,52 +1,82 @@
-import User from "../models/user.model";
+import prisma from "../config/prisma";
+import { userPublicSelect } from "./user.select";
 
+const USER_UPDATE_FIELDS = [
+  "firstName",
+  "lastName",
+  "email",
+  "phone",
+  "profileImage",
+  "role",
+  "isVerified",
+  "isActive",
+] as const;
 
 export class UserRepository {
   getUsers() {
-    return User.find().select("-password -refreshTokens");
+    return prisma.user.findMany({
+      select: userPublicSelect,
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   getUserById(id: string) {
-    return User.findById(id).select("-password -refreshTokens");
+    return prisma.user.findUnique({
+      where: { id },
+      select: userPublicSelect,
+    });
   }
 
   findByIds(ids: string[]) {
-    return User.find({ _id: { $in: ids } }).select(
-      "firstName lastName phone profileImage isActive"
-    );
+    return prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        profileImage: true,
+        isActive: true,
+      },
+    });
   }
 
-  async updateUser(id: string, data: any) {
-    console.log("Repository ID:", id);
-    console.log("Repository Data:", data);
+  async updateUser(id: string, data: Record<string, unknown>) {
+    const existing = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    });
 
-    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-        throw new Error("Invalid User ID");
+    if (!existing) {
+      return null;
+    }
+
+    const safeData: Record<string, unknown> = {};
+
+    for (const field of USER_UPDATE_FIELDS) {
+      if (data[field] !== undefined) {
+        safeData[field] = data[field];
       }
+    }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { $set: data },
-      {
-        returnDocument: "after",
-        runValidators: true,
-      }
-    ).select("-password -refreshTokens");
-
-    console.log("Updated User:", updatedUser);
-
-    return updatedUser;
+    return prisma.user.update({
+      where: { id },
+      data: safeData,
+      select: userPublicSelect,
+    });
   }
 
   deleteUser(id: string) {
-    return User.findByIdAndDelete(id);
+    return prisma.user.delete({
+      where: { id },
+    });
   }
 
   updateStatus(id: string, isActive: boolean) {
-    return User.findByIdAndUpdate(
-      id,
-      { isActive },
-      { new: true }
-    ).select("-password -refreshTokens");
+    return prisma.user.update({
+      where: { id },
+      data: { isActive },
+      select: userPublicSelect,
+    });
   }
 }

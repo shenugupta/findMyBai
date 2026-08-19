@@ -1,10 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import { UserService } from "../services/user.service";
-import User from "../models/user.model";
-
-interface IdParams {
-  id: string;
-}
 
 export class UserController {
   private userService = new UserService();

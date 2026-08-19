@@ -2,7 +2,7 @@ import { Router } from "express";
 import { AuthController } from "../controllers/auth.controller";
 import { authenticate, AuthRequest } from "../middleware/auth.middleware";
 import { Response, NextFunction } from "express";
-import { UserRole } from "../models/user.model";
+import { UserRole } from "@prisma/client";
 
 export const authorize =
   (...roles: UserRole[]) =>

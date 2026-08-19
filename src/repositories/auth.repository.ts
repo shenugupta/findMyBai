@@ -1,94 +1,101 @@
-import User, { UserDocument } from "../models/user.model";
-
+import { UserRole } from "@prisma/client";
+import prisma from "../config/prisma";
+import { userPublicSelect } from "./user.select";
 
 export class AuthRepository {
-  /**
-   * Create User
-   */
-
-
-  /**
-   * Find User By Email
-   */
-
   async findByEmail(email: string) {
-    return User.findOne({ email }).select("+password +refreshTokens");
+    return prisma.user.findUnique({
+      where: { email },
+    });
   }
 
-  async createUser(data: Partial<UserDocument>): Promise<UserDocument> {
-    const user = new User(data);
-    return user.save();
-  }
-  /**
-   * Find User By Phone
-   */
-  async findByPhone(phone: string): Promise<UserDocument | null> {
-    return await User.findOne({ phone }).select("+password");
+  async createUser(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    password: string;
+    role: UserRole;
+  }) {
+    return prisma.user.create({
+      data,
+      select: userPublicSelect,
+    });
   }
 
-  /**
-   * Find User By Id
-   */
+  async findByPhone(phone: string) {
+    return prisma.user.findUnique({
+      where: { phone },
+    });
+  }
 
-  /**
-   * Check if Email Exists
-   */
   async emailExists(email: string): Promise<boolean> {
-    const user = await User.exists({ email });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     return !!user;
   }
 
-  /**
-   * Check if Phone Exists
-   */
   async phoneExists(phone: string): Promise<boolean> {
-    const user = await User.exists({ phone });
+    const user = await prisma.user.findUnique({
+      where: { phone },
+      select: { id: true },
+    });
     return !!user;
   }
 
-  async findById(userId: string): Promise<UserDocument | null> {
-    return User.findById(userId);
-  }
-  
-  async findUserForRefresh(id: string) {
-    return User.findById(id).select("+refreshTokens");
-  }
-
-  /**
-   * Update Verification Status
-   */
-  async verifyUser(userId: string): Promise<UserDocument | null> {
-    return await User.findByIdAndUpdate(
-      userId,
-      { isVerified: true },
-      { new: true }
-    );
+  async findById(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: userPublicSelect,
+    });
   }
 
-  /**
-   * Update Password
-   */
-  async updatePassword(
-    userId: string,
-    hashedPassword: string
-  ): Promise<UserDocument | null> {
-    return await User.findByIdAndUpdate(
-      userId,
-      {
-        password: hashedPassword,
+  async createRefreshToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }) {
+    return prisma.refreshToken.create({ data });
+  }
+
+  async findValidRefreshToken(userId: string, tokenHash: string) {
+    return prisma.refreshToken.findFirst({
+      where: {
+        userId,
+        tokenHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
       },
-      {
-        new: true,
-      }
-    );
+      include: {
+        user: {
+          select: userPublicSelect,
+        },
+      },
+    });
   }
 
-  /**
-   * Update Last Login
-   */
+  async verifyUser(userId: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { isVerified: true },
+      select: userPublicSelect,
+    });
+  }
+
+  async updatePassword(userId: string, hashedPassword: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+      select: userPublicSelect,
+    });
+  }
+
   async updateLastLogin(userId: string): Promise<void> {
-    await User.findByIdAndUpdate(userId, {
-      lastLoginAt: new Date(),
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
     });
   }
 }

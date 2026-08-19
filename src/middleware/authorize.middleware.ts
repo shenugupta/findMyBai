@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth.middleware";
-import { UserRole } from "../models/user.model";
+import { UserRole } from "@prisma/client";
 
 export const authorize =
   (...roles: UserRole[]) =>
