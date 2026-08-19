@@ -5,6 +5,7 @@ import morgan from "morgan";
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
+import workerRoutes from "./routes/worker.routes";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.get("/", (req, res) => {
 // API Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/workers", workerRoutes);
 
 // 404 Handler
 app.use((req, res) => {
