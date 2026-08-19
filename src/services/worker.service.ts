@@ -1,5 +1,6 @@
-import { WorkerRepository } from "../repositories/worker.repository";
+import { WorkerProfileView, WorkerRepository } from "../repositories/worker.repository";
 import { AuthRepository } from "../repositories/auth.repository";
+import { UserRepository } from "../repositories/user.repository";
 import { UserRole } from "../models/user.model";
 
 const AVAILABILITY = ["FULL_TIME", "PART_TIME", "LIVE_IN"] as const;
@@ -7,6 +8,7 @@ const AVAILABILITY = ["FULL_TIME", "PART_TIME", "LIVE_IN"] as const;
 export class WorkerService {
   private workerRepository = new WorkerRepository();
   private authRepository = new AuthRepository();
+  private userRepository = new UserRepository();
 
   async createProfile(
     userId: string,
@@ -63,6 +65,82 @@ export class WorkerService {
       availability,
       services: data.services ?? [],
       isAvailable: data.isAvailable,
+    });
+  }
+
+  async getProfile(userId: string) {
+    const profile = await this.workerRepository.findByUserId(userId);
+
+    if (!profile) {
+      throw new Error("Worker profile not found");
+    }
+
+    return profile;
+  }
+
+  async updateProfile(
+    userId: string,
+    data: {
+      bio?: string;
+      skills?: string[];
+      experienceYears?: number;
+      hourlyRate?: number;
+      monthlyRate?: number;
+      city?: string;
+      locality?: string;
+      languages?: string[];
+      availability?: string;
+      services?: string[];
+      isAvailable?: boolean;
+    }
+  ) {
+    const existing = await this.workerRepository.findByUserId(userId);
+
+    if (!existing) {
+      throw new Error("Worker profile not found");
+    }
+
+    if (data.city !== undefined && !data.city.trim()) {
+      throw new Error("City is required");
+    }
+
+    if (
+      data.availability !== undefined &&
+      !AVAILABILITY.includes(data.availability as (typeof AVAILABILITY)[number])
+    ) {
+      throw new Error("Availability must be FULL_TIME, PART_TIME, or LIVE_IN");
+    }
+
+    return this.workerRepository.update(userId, {
+      ...data,
+      ...(data.city !== undefined && { city: data.city.trim() }),
+    });
+  }
+
+  async getWorkers() {
+    const profiles: WorkerProfileView[] = await this.workerRepository.findAll();
+    const users = await this.userRepository.findByIds(
+      profiles.map((profile) => profile.userId)
+    );
+    const usersById = new Map(
+      users.map((user) => [user._id.toString(), user])
+    );
+
+    return profiles.map((profile) => {
+      const user = usersById.get(profile.userId);
+
+      return {
+        ...profile,
+        user: user
+          ? {
+              firstName: user.firstName,
+              lastName: user.lastName,
+              phone: user.phone,
+              profileImage: user.profileImage,
+              isActive: user.isActive,
+            }
+          : null,
+      };
     });
   }
 }

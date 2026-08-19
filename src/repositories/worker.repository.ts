@@ -47,6 +47,8 @@ const toProfile = (profile: {
   services: parseJsonArray(profile.services),
 });
 
+export type WorkerProfileView = ReturnType<typeof toProfile>;
+
 export class WorkerRepository {
   async findByUserId(userId: string) {
     const profile = await prisma.workerProfile.findUnique({
@@ -54,6 +56,14 @@ export class WorkerRepository {
     });
 
     return profile ? toProfile(profile) : null;
+  }
+
+  async findAll(): Promise<WorkerProfileView[]> {
+    const profiles = await prisma.workerProfile.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    return profiles.map(toProfile);
   }
 
   async create(data: CreateWorkerProfileData) {
@@ -71,6 +81,33 @@ export class WorkerRepository {
         availability: data.availability,
         services: JSON.stringify(data.services),
         isAvailable: data.isAvailable ?? true,
+      },
+    });
+
+    return toProfile(profile);
+  }
+
+  async update(userId: string, data: Partial<Omit<CreateWorkerProfileData, "userId">>) {
+    const profile = await prisma.workerProfile.update({
+      where: { userId },
+      data: {
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.skills !== undefined && { skills: JSON.stringify(data.skills) }),
+        ...(data.experienceYears !== undefined && {
+          experienceYears: data.experienceYears,
+        }),
+        ...(data.hourlyRate !== undefined && { hourlyRate: data.hourlyRate }),
+        ...(data.monthlyRate !== undefined && { monthlyRate: data.monthlyRate }),
+        ...(data.city !== undefined && { city: data.city }),
+        ...(data.locality !== undefined && { locality: data.locality }),
+        ...(data.languages !== undefined && {
+          languages: JSON.stringify(data.languages),
+        }),
+        ...(data.availability !== undefined && { availability: data.availability }),
+        ...(data.services !== undefined && {
+          services: JSON.stringify(data.services),
+        }),
+        ...(data.isAvailable !== undefined && { isAvailable: data.isAvailable }),
       },
     });
 

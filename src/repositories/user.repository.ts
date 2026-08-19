@@ -10,6 +10,12 @@ export class UserRepository {
     return User.findById(id).select("-password -refreshTokens");
   }
 
+  findByIds(ids: string[]) {
+    return User.find({ _id: { $in: ids } }).select(
+      "firstName lastName phone profileImage isActive"
+    );
+  }
+
   async updateUser(id: string, data: any) {
     console.log("Repository ID:", id);
     console.log("Repository Data:", data);
