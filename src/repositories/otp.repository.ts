@@ -1,4 +1,4 @@
-import { OTPPurpose } from "@prisma/client";
+import { OTPPurpose } from "../constants/enums";
 import prisma from "../config/prisma";
 
 export class OTPRepository {

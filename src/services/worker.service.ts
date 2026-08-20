@@ -1,5 +1,5 @@
-import { UserRole } from "@prisma/client";
-import { WorkerRepository } from "../repositories/worker.repository";
+import { UserRole } from "../constants/enums";
+import { WorkerListFilters, WorkerRepository } from "../repositories/worker.repository";
 import { AuthRepository } from "../repositories/auth.repository";
 
 const AVAILABILITY = ["FULL_TIME", "PART_TIME", "LIVE_IN"] as const;
@@ -115,7 +115,17 @@ export class WorkerService {
     });
   }
 
-  async getWorkers() {
-    return this.workerRepository.findAll();
+  async getWorkers(filters: WorkerListFilters = {}) {
+    return this.workerRepository.findAll(filters);
+  }
+
+  async getWorkerById(id: string) {
+    const worker = await this.workerRepository.findById(id);
+
+    if (!worker) {
+      throw new Error("Worker profile not found");
+    }
+
+    return worker;
   }
 }

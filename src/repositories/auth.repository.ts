@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { UserRole } from "../constants/enums";
 import prisma from "../config/prisma";
 import { userPublicSelect } from "./user.select";
 

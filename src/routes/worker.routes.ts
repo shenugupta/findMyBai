@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/authorize.middleware";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "../constants/enums";
 import { WorkerController } from "../controllers/worker.controller";
 
 const router = Router();
@@ -29,5 +29,7 @@ router.put(
   authorize(UserRole.WORKER),
   controller.updateProfile
 );
+
+router.get("/:id", authenticate, controller.getWorkerById);
 
 export default router;

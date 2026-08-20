@@ -13,6 +13,7 @@ export interface CreateWorkerProfileData {
   availability: string;
   services: string[];
   isAvailable?: boolean;
+  rating?: number;
 }
 
 const parseJsonArray = (value: string): string[] => {
@@ -38,6 +39,7 @@ const toProfile = (profile: {
   availability: string;
   services: string;
   isAvailable: boolean;
+  rating: number;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
@@ -49,6 +51,31 @@ const toProfile = (profile: {
 
 export type WorkerProfileView = ReturnType<typeof toProfile>;
 
+const workerUserSelect = {
+  firstName: true,
+  lastName: true,
+  phone: true,
+  profileImage: true,
+  isActive: true,
+} as const;
+
+type WorkerUser = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  profileImage: string | null;
+  isActive: boolean;
+};
+
+type WorkerWithUser = WorkerProfileView & { user: WorkerUser };
+
+export interface WorkerListFilters {
+  location?: string;
+  service?: string;
+  rating?: number;
+  experience?: number;
+}
+
 export class WorkerRepository {
   async findByUserId(userId: string) {
     const profile = await prisma.workerProfile.findUnique({
@@ -58,34 +85,95 @@ export class WorkerRepository {
     return profile ? toProfile(profile) : null;
   }
 
-  async findAll(): Promise<(WorkerProfileView & {
-    user: {
-      firstName: string;
-      lastName: string;
-      phone: string;
-      profileImage: string | null;
-      isActive: boolean;
-    };
-  })[]> {
-    const profiles = await prisma.workerProfile.findMany({
-      orderBy: { createdAt: "desc" },
+  async findById(id: string) {
+    const profile = await prisma.workerProfile.findUnique({
+      where: { id },
       include: {
         user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            phone: true,
-            profileImage: true,
-            isActive: true,
-          },
+          select: workerUserSelect,
         },
       },
     });
 
-    return profiles.map((profile) => ({
+    if (!profile) {
+      return null;
+    }
+
+    return {
       ...toProfile(profile),
       user: profile.user,
-    }));
+    } as WorkerWithUser;
+  }
+
+  async findAll(filters: WorkerListFilters = {}): Promise<WorkerWithUser[]> {
+    const where: Record<string, unknown> = {};
+    const and: Record<string, unknown>[] = [];
+
+    if (filters.experience !== undefined) {
+      and.push({ experienceYears: { gte: filters.experience } });
+    }
+
+    if (filters.rating !== undefined) {
+      and.push({ rating: { gte: filters.rating } });
+    }
+
+    if (filters.location) {
+      and.push({
+        OR: [
+          { city: { contains: filters.location } },
+          { locality: { contains: filters.location } },
+        ],
+      });
+    }
+
+    if (filters.service) {
+      and.push({ services: { contains: filters.service } });
+    }
+
+    if (and.length > 0) {
+      where.AND = and;
+    }
+
+    const profiles = await prisma.workerProfile.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: workerUserSelect,
+        },
+      },
+    });
+
+    return profiles
+      .map((profile: { user: WorkerUser } & Parameters<typeof toProfile>[0]) => ({
+        ...toProfile(profile),
+        user: profile.user,
+      }))
+      .filter((profile: WorkerWithUser) => {
+        if (filters.location) {
+          const location = filters.location.toLowerCase();
+          const city = profile.city.toLowerCase();
+          const locality = (profile.locality ?? "").toLowerCase();
+          if (!city.includes(location) && !locality.includes(location)) {
+            return false;
+          }
+        }
+
+        if (filters.service) {
+          const service = filters.service.toLowerCase();
+          const inServices = profile.services.some((item) =>
+            item.toLowerCase().includes(service)
+          );
+          const inSkills = profile.skills.some((item) =>
+            item.toLowerCase().includes(service)
+          );
+          if (!inServices && !inSkills) {
+            return false;
+          }
+        }
+
+        return true;
+      });
   }
 
   async create(data: CreateWorkerProfileData) {
@@ -103,6 +191,7 @@ export class WorkerRepository {
         availability: data.availability,
         services: JSON.stringify(data.services),
         isAvailable: data.isAvailable ?? true,
+        rating: data.rating ?? 0,
       },
     });
 
@@ -130,6 +219,7 @@ export class WorkerRepository {
           services: JSON.stringify(data.services),
         }),
         ...(data.isAvailable !== undefined && { isAvailable: data.isAvailable }),
+        ...(data.rating !== undefined && { rating: data.rating }),
       },
     });
 

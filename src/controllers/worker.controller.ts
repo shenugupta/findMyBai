@@ -131,13 +131,77 @@ export class WorkerController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const workers = await this.workerService.getWorkers();
+      const location = typeof req.query.location === "string" ? req.query.location : undefined;
+      const service = typeof req.query.service === "string" ? req.query.service : undefined;
+      const rating =
+        typeof req.query.rating === "string" && req.query.rating !== ""
+          ? Number(req.query.rating)
+          : undefined;
+      const experience =
+        typeof req.query.experience === "string" && req.query.experience !== ""
+          ? Number(req.query.experience)
+          : undefined;
+
+      if (rating !== undefined && Number.isNaN(rating)) {
+        res.status(400).json({
+          success: false,
+          message: "rating must be a number",
+        });
+        return;
+      }
+
+      if (experience !== undefined && Number.isNaN(experience)) {
+        res.status(400).json({
+          success: false,
+          message: "experience must be a number",
+        });
+        return;
+      }
+
+      const workers = await this.workerService.getWorkers({
+        location,
+        service,
+        rating,
+        experience,
+      });
 
       res.status(200).json({
         success: true,
         data: workers,
       });
     } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/workers/:id
+   */
+  getWorkerById = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const worker = await this.workerService.getWorkerById(
+        req.params.id as string
+      );
+
+      res.status(200).json({
+        success: true,
+        data: worker,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Request failed";
+
+      if (message === "Worker profile not found") {
+        res.status(404).json({
+          success: false,
+          message,
+        });
+        return;
+      }
+
       next(error);
     }
   };

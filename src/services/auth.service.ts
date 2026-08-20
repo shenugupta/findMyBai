@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "../constants/enums";
 import { AuthRepository } from "../repositories/auth.repository";
 import { comparePassword, hashPassword, hashToken } from "../utils/hash";
 import {
